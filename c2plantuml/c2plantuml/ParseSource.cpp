@@ -7,6 +7,7 @@
 using namespace std;
 
 #define DEF_STR	"#define"
+#define UNDEF_STR "#undef"
 #define INC_STR	"#include"
 #define	NAMESPACE_STR	"namespace"
 #define INLINE_STR	"inline"
@@ -315,6 +316,32 @@ void ParseSource::ParseSyntax(const std::string& inContent, bool inSwitchCase, s
 				string remainCommand = inContent.substr(start);
 				//ParseSyntax(remainCommand, outUml);
 			}
+			/*else if ((inContent[index] == '#') && !isInString(inContent.substr(0, index)))
+			{
+				unsigned long long _start = index;
+				unsigned long long _end = index+1;
+				int _preCnt = 0;
+				while (index < inContent.length())
+				{
+					if ((inContent[index] == ' ') || (inContent[index] == '\n'))
+					{
+						break;
+					}
+					++index;
+				}
+				string preStr = inContent.substr(_start, index - _start);
+				if ((preStr == "#if") || (preStr == "#ifdef") || (preStr == "#ifndef"))
+				{
+					_preCnt = 1;
+				}
+				while ((_preCnt != 0) && (_end < inContent.length()))
+				{
+					
+					if ((inContent[index] == '{') && !isInString(inContent.substr(0, index))) ++curlyBracketCnt;
+					if ((inContent[index] == '}') && !isInString(inContent.substr(0, index))) --curlyBracketCnt;
+					++index;
+				}
+			}*/
 			++index;
 		}
 	}
@@ -515,6 +542,8 @@ bool ParseSource::checkValidFuncDef(std::string& inFuncDef)
 
 void ParseSource::ContentFilter(std::string& inoutContent)
 {
+	static const string listPre[] = { "#if ", "#ifdef ", "#ifndef ", "#else", "#endif" };
+	static const string listReplace[] = { "if (", "if (", "if (", "} else {", "} " };
 	// remove comment, preprocess
 	istringstream tempContent(inoutContent);
 	inoutContent = "";
@@ -544,6 +573,7 @@ void ParseSource::ContentFilter(std::string& inoutContent)
 		if ((lineContent == "\n") && !isBlockCmt) continue;
 		if ((lineContent == "") && !isBlockCmt) continue;
 		if ((lineContent.find(DEF_STR) != string::npos) && !isBlockCmt) continue;
+		if ((lineContent.find(UNDEF_STR) != string::npos) && !isBlockCmt) continue;
 		if ((lineContent.find(INC_STR) != string::npos) && !isBlockCmt) continue;
 		//if ((lineContent.find(INLINE_STR) != string::npos) && !isBlockCmt) continue;
 		if ((lineContent.find(NAMESPACE_STR) != string::npos) && !isBlockCmt) continue;
@@ -572,6 +602,21 @@ void ParseSource::ContentFilter(std::string& inoutContent)
 		}
 		if (!isBlockCmt)
 		{
+			for (int idx = 0; idx < _countof(listPre); idx++)
+			{
+				int index = lineContent.find(listPre[idx]);
+				if (index != string::npos)
+				{
+					if (idx <= 2)
+					{
+						lineContent = listReplace[idx] + lineContent + ") {";
+					}
+					else
+					{
+						lineContent.replace(index, listPre[idx].length(), listReplace[idx]);
+					}
+				}
+			}
 			inoutContent += (lineContent + '\n');
 		}
 	}
